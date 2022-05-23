@@ -16,7 +16,7 @@ yarn run build
 
 ## Usage
 
-Firstly we need to import the bundle/library and construct a `PassportReader` instance, passing in a ceramic node URL
+Firstly we need to import the bundle/library and construct a `PassportReader` instance, passing in a ceramic node URL and a networkId
 ```
 // import the bundle
 <script src="./dist/reader.bundle.js" type="script/javascript"/>
@@ -25,13 +25,13 @@ Firstly we need to import the bundle/library and construct a `PassportReader` in
 import PassportReader from '@dpopp/passport-reader'
 
 ...
-
-const reader = new PassportReader('https://ceramic-clay.3boxlabs.com')
+// create a new instance point at the community clay node on mainnet
+const reader = new PassportReader('https://ceramic-clay.3boxlabs.com', '1')
 ```
 
 <br/>
 
-The `PassportReader` instance exposes 5 methods to help read the content of a dPopp Passport:
+The `PassportReader` instance exposes read-only methods to get the content of a dPopp Passport/Ceramic account:
 
 <br/>
 
@@ -41,24 +41,22 @@ The `PassportReader` instance exposes 5 methods to help read the content of a dP
 reader.getDID(address: string): string | false
 ```
 
+- `getAccounts` - pass in a DID and read back all addresses which have control of it
+```
+reader.getAccounts(did: string): string[]
+```
+
 - `getPassport` - pass in a ceramic DID and get back a fully hydrated Passport record
 ```
 reader.getPassport(did: string): CeramicPassport | CeramicCredentialPassport | false
 ```
 
-- `getStamps` - pass in a Passport and get back all the stamps as an array (after hydrating each stamps streamID)
+- `getAccountsStream` - pass in a DID and read back the raw stream record of addresses which have control of it
 ```
-reader.getStamps(record: CeramicPassport): (CeramicStamp | CeramicCredentialStamp | false)[]
-``` 
+reader.getAccounts(did: string): Record<string, string>
+```
 
-- `getPassportStream` - pass in a ceramic DID and get back a Passport stream record *note that this is a shallow copy of the passport (and needs to have its stamps hydrated)
+- `getPassportStream` - pass in a ceramic DID and get back a raw Passport stream record *note that this is a shallow copy of the passport (and needs to have its stamps hydrated)
 ```
 reader.getPassportStream(did: string): CeramicPassport | false
 ``` 
-
-- `getStampStream` - pass in a stamps CeramicStamp record and get back a fully hydrated CeramicCredentialStamp based on the `credential` streamID
-```
-reader.getStampStream(stamp: CeramicStamp): CeramicCredentialStamp | false
-``` 
-
-

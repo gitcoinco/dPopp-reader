@@ -1,54 +1,80 @@
-// ---- Self.id core entry point
-import { Core } from "@self.id/core";
+// ---- Tulons exposes a simple interface to read from Ceramic
+import { Tulons } from "tulons";
 
-// ---- Typings for dPoPP passport reader
-import {
-  CeramicCredentialStamp,
-  CeramicCredentialPassport,
-  CeramicPassport,
-  CeramicStamp,
-  ModelTypes,
-  VerifiableCredential,
-} from "./types";
+// ---- Define Typings for dPassport
+export type CeramicStreams = Record<string, string | false>;
+export type CeramicAccounts = Record<string, string>;
 
-/**
- * Pull all stamps for a given address...
- *
- * const reader = new PassportReader("https://ceramic-clay.3boxlabs.com")
- * const address = "0x0..."
- * const did = await reader.getDID(address)
- * const passport = await reader.getPassport(did)
- *
- **/
+// Raw Stamp stream as pulled from Ceramic
+export type CeramicStampStream = {
+  provider: string;
+  credential: string;
+};
+// Hydrated Stamp stream
+export type CeramicStampRecord = {
+  provider: string;
+  credential: VerifiableCredential;
+};
 
-export default class PassportReader {
-  _core: Core<ModelTypes>;
+// Raw Passport stream as pulled from Ceramic
+export type CeramicPassportStream = {
+  issuanceDate: string;
+  expiryDate: string;
+  stamps: CeramicStampStream[];
+};
+// Hydrated Passport stream
+export type CeramicPassportRecord = {
+  issuanceDate: string;
+  expiryDate: string;
+  stamps: CeramicStampRecord[];
+};
 
-  constructor(url?: string) {
-    this._core = new Core<ModelTypes>({
-      ceramic: url ?? "https://ceramic-clay.3boxlabs.com",
-      aliases: {
-        definitions: {
-          Passport:
-            "kjzl6cwe1jw14b5pv8zucigpz0sc2lh9z5l0ztdrvqw5y1xt2tvz8cjt34bkub9",
-          VerifiableCredential:
-            "kjzl6cwe1jw147bsnnxvupgywgr0tyi7tesgle7e4427hw2dn8sp9dnsltvey1n",
-        },
-        schemas: {
-          Passport:
-            "ceramic://k3y52l7qbv1frygm3lu9o9qra3nid11t6vuj0mas2m1mmlywh0fop5tgrxf060000",
-          VerifiableCredential:
-            "ceramic://k3y52l7qbv1frxunk7h39a05iup0s5sheycsgi8ozxme1s3tl37modhalv38d05q8",
-        },
-        tiles: {},
-      },
-    });
+// Each Stamp holds a VerifiableCredential that describes the authentication method being attested to
+export type VerifiableCredential = {
+  "@context": string[];
+  type: string[];
+  credentialSubject: {
+    id: string;
+    "@context": { [key: string]: string }[];
+    root?: string;
+    address?: string;
+    challenge?: string;
+  };
+  issuer: string;
+  issuanceDate: string;
+  expirationDate: string;
+  proof: {
+    type: string;
+    proofPurpose: string;
+    verificationMethod: string;
+    created: string;
+    jws: string;
+  };
+};
+
+// ---- Define PassportReader class (Returns Passport/Account data via Tulons)
+export class PassportReader {
+  _tulons: Tulons;
+
+  _ceramic_passport_stream_id: string;
+  _ceramic_crypto_accounts_stream_id: string;
+
+  constructor(url?: string, network?: string | number) {
+    // create a tulons instance
+    this._tulons = new Tulons(url, network);
+    // ceramic definition keys to get streamIds from genesis record
+    this._ceramic_crypto_accounts_stream_id =
+      "kjzl6cwe1jw149z4rvwzi56mjjukafta30kojzktd9dsrgqdgz4wlnceu59f95f";
+    this._ceramic_passport_stream_id =
+      "kjzl6cwe1jw14b5pv8zucigpz0sc2lh9z5l0ztdrvqw5y1xt2tvz8cjt34bkub9";
   }
 
   async getDID(address: string): Promise<string | false> {
     let did: string | false;
+
+    // attempt to get the associated DID for the given account
     try {
-      did = await this._core.getAccountDID(`${address}@eip155:1`);
+      did = await this._tulons.getDID(address);
     } catch {
       did = false;
     }
@@ -56,62 +82,86 @@ export default class PassportReader {
     return did;
   }
 
+  async getAccounts(did: string, streams?: CeramicStreams): Promise<string[]> {
+    const stream = await this.getAccountsStream(did, streams);
+
+    // clean up the addresses we retrieve
+    if (stream) {
+      return Object.keys(stream).map((address) =>
+        this._tulons.getCleanAddress(address)
+      );
+    }
+
+    return [];
+  }
+
   async getPassport(
-    did: string
-  ): Promise<CeramicPassport | CeramicCredentialPassport | false> {
-    const passport = await this.getPassportStream(did);
+    did: string,
+    streams?: CeramicStreams
+  ): Promise<CeramicPassportStream | CeramicPassportRecord | false> {
+    const passport = await this.getPassportStream(did, streams);
 
+    // hydrate the ceramic:// uris in the passport
     if (passport) {
-      const stamps = await this.getStamps(passport);
-
-      return {
-        issuanceDate: passport.issuanceDate,
-        expiryDate: passport.expiryDate,
-        stamps: stamps as CeramicCredentialStamp[],
-      };
+      return (await this._tulons.getHydrated(
+        passport
+      )) as CeramicPassportRecord;
     }
 
     return passport;
   }
 
-  async getStamps(
-    record: CeramicPassport
-  ): Promise<(CeramicStamp | CeramicCredentialStamp | false)[]> {
-    const stamps = record?.stamps || [];
+  async getAccountsStream(
+    did: string,
+    streams?: CeramicStreams
+  ): Promise<CeramicAccounts> {
+    let accounts: CeramicAccounts = {};
 
-    return await Promise.all(
-      stamps.map(async (stamp) => {
-        return await this.getStampStream(stamp);
-      })
-    );
+    try {
+      // get the genesis link to pull ids from
+      const genesis = this._tulons.getGenesisHash(did);
+      // pull pointer from did to passport stream
+      streams =
+        streams && streams[this._ceramic_crypto_accounts_stream_id]
+          ? streams
+          : await this._tulons.getGenesisStreams(genesis, [
+              this._ceramic_crypto_accounts_stream_id,
+            ]);
+      // pull the passport from the discovered stream
+      accounts = (await this._tulons.getStream(
+        streams[this._ceramic_crypto_accounts_stream_id] as string
+      )) as CeramicAccounts;
+    } catch {
+      accounts = {};
+    }
+
+    return accounts;
   }
 
-  async getPassportStream(did: string): Promise<CeramicPassport | false> {
-    let passport: CeramicPassport | false;
+  async getPassportStream(
+    did: string,
+    streams?: CeramicStreams
+  ): Promise<CeramicPassportStream | false> {
+    let passport: CeramicPassportStream | false;
+
     try {
-      passport = await this._core.get("Passport", did);
+      // pull pointer from did to passport stream
+      streams =
+        streams && streams[this._ceramic_passport_stream_id]
+          ? streams
+          : // get the genesis link and pull streams from it
+            await this._tulons.getGenesisStreams(
+              this._tulons.getGenesisHash(did),
+              [this._ceramic_passport_stream_id]
+            );
+      // pull the passport from the discovered stream
+      passport = (await this._tulons.getStream(
+        streams[this._ceramic_passport_stream_id] as string
+      )) as CeramicPassportStream;
     } catch {
       passport = false;
     }
 
     return passport;
-  }
-
-  async getStampStream(
-    stamp: CeramicStamp
-  ): Promise<CeramicStamp | CeramicCredentialStamp | false> {
-    let hydratedStamp: CeramicStamp | CeramicCredentialStamp | false;
-    try {
-      hydratedStamp = {
-        provider: stamp.provider,
-        credential: (await (
-          await this._core._ceramic.loadStream(stamp.credential)
-        ).content) as VerifiableCredential,
-      } as CeramicCredentialStamp;
-    } catch {
-      hydratedStamp = false;
-    }
-
-    return hydratedStamp;
   }
 }

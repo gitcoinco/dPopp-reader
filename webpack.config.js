@@ -1,17 +1,19 @@
 const path = require('path')
 
-
-module.exports = {
+// Export as two seperate libraries
+module.exports = [{
   entry: './src/reader.ts',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'reader.bundle.js',
-    libraryTarget: 'umd',
     library: 'PassportReader',
-    umdNamedDefine: true,
-    libraryExport: 'default',
+    libraryExport: 'PassportReader',
+    libraryTarget: 'var'
+  },
+  resolve: {
+    extensions: ['.ts', '.d.ts', '.js', '.json']
   },
   module: {
-    rules: [{ test: /.ts$/, use: 'ts-loader' }],
-  },
-}
+    rules: [{ test: /.ts$/, use: 'ts-loader' }]
+  }
+}];
