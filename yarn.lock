@@ -3276,10 +3276,10 @@ tsutils@^3.21.0:
   dependencies:
     tslib "^1.8.1"
 
-tulons@^0.0.2:
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/tulons/-/tulons-0.0.2.tgz#02c74296327e05fbb2d8aa3a1160fa992776c435"
-  integrity sha512-XOHRXEwBRouJKZ8XNCoUyZ8Wi0+pQAY7QMJlmT+eqv6A0IpkpECpfHRyVlsKChHPL7PtEmgJOTMM0DMdz3vSNQ==
+tulons@^0.0.3-rev.a:
+  version "0.0.3-rev.a"
+  resolved "https://registry.yarnpkg.com/tulons/-/tulons-0.0.3-rev.a.tgz#6cfc49da8d39b0ef99adaa9279160bc78e1be884"
+  integrity sha512-r5I4KIDOGiTlFRrLzz6Y6Jpx6KOR3tJLX7tbVMTi9XjZ/0yvBRYRzxim/8w0RhLA+40SPLL3c3PoJA/JAxAtlg==
   dependencies:
     "@ipld/dag-cbor" "^7.0.1"
     hash.js "^1.1.7"
