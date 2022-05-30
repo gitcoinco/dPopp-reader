@@ -31,32 +31,22 @@ const reader = new PassportReader('https://ceramic-clay.3boxlabs.com', '1')
 
 <br/>
 
-The `PassportReader` instance exposes read-only methods to get the content of a dPopp Passport/Ceramic account:
+The `PassportReader` instance exposes read-only methods to get the content of a Gitcoin Passport:
 
 <br/>
 
 
-- `getDID` - pass in a wallet address and get back a ceramic DID
+- `getGenesis` - pass in a wallet address and get back the did:pkh and genesis IDX streams
 ```
-reader.getDID(address: string): string | false
-```
-
-- `getAccounts` - pass in a DID and read back all addresses which have control of it
-```
-reader.getAccounts(did: string): string[]
+reader.getGenesis(address: string): Promise<CeramicGenesis | false>
 ```
 
 - `getPassport` - pass in a ceramic DID and get back a fully hydrated Passport record
 ```
-reader.getPassport(did: string): CeramicPassport | CeramicCredentialPassport | false
-```
-
-- `getAccountsStream` - pass in a DID and read back the raw stream record of addresses which have control of it
-```
-reader.getAccounts(did: string): Record<string, string>
+reader.getPassport(did: string): Promise<CeramicPassport | CeramicCredentialPassport | false>
 ```
 
 - `getPassportStream` - pass in a ceramic DID and get back a raw Passport stream record *note that this is a shallow copy of the passport (and needs to have its stamps hydrated)
 ```
-reader.getPassportStream(did: string): CeramicPassport | false
+reader.getPassportStream(did: string): Promise<CeramicPassport | false>
 ``` 

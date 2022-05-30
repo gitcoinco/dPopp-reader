@@ -1,9 +1,8 @@
 // ---- Tulons exposes a simple interface to read from Ceramic
-import { Tulons } from "tulons";
+import { CeramicGenesis, Tulons } from "tulons";
 
 // ---- Define Typings for dPassport
 export type CeramicStreams = Record<string, string | false>;
-export type CeramicAccounts = Record<string, string>;
 
 // Raw Stamp stream as pulled from Ceramic
 export type CeramicStampStream = {
@@ -36,7 +35,8 @@ export type VerifiableCredential = {
   credentialSubject: {
     id: string;
     "@context": { [key: string]: string }[];
-    root?: string;
+    hash?: string;
+    provider?: string;
     address?: string;
     challenge?: string;
   };
@@ -56,43 +56,27 @@ export type VerifiableCredential = {
 export class PassportReader {
   _tulons: Tulons;
 
-  _ceramic_passport_stream_id: string;
-  _ceramic_crypto_accounts_stream_id: string;
+  _ceramic_gitcoin_passport_stream_id: string;
 
   constructor(url?: string, network?: string | number) {
     // create a tulons instance
     this._tulons = new Tulons(url, network);
     // ceramic definition keys to get streamIds from genesis record
-    this._ceramic_crypto_accounts_stream_id =
-      "kjzl6cwe1jw149z4rvwzi56mjjukafta30kojzktd9dsrgqdgz4wlnceu59f95f";
-    this._ceramic_passport_stream_id =
-      "kjzl6cwe1jw14b5pv8zucigpz0sc2lh9z5l0ztdrvqw5y1xt2tvz8cjt34bkub9";
+    this._ceramic_gitcoin_passport_stream_id =
+      "kjzl6cwe1jw148h1e14jb5fkf55xmqhmyorp29r9cq356c7ou74ulowf8czjlzs";
   }
 
-  async getDID(address: string): Promise<string | false> {
-    let did: string | false;
+  async getGenesis(address: string): Promise<CeramicGenesis | false> {
+    let genesis: CeramicGenesis | false;
 
-    // attempt to get the associated DID for the given account
+    // attempt to get the associated genesis for the given account
     try {
-      did = await this._tulons.getDID(address);
+      genesis = await this._tulons.getGenesis(address);
     } catch {
-      did = false;
+      genesis = false;
     }
 
-    return did;
-  }
-
-  async getAccounts(did: string, streams?: CeramicStreams): Promise<string[]> {
-    const stream = await this.getAccountsStream(did, streams);
-
-    // clean up the addresses we retrieve
-    if (stream) {
-      return Object.keys(stream).map((address) =>
-        this._tulons.getCleanAddress(address)
-      );
-    }
-
-    return [];
+    return genesis;
   }
 
   async getPassport(
@@ -111,35 +95,8 @@ export class PassportReader {
     return passport;
   }
 
-  async getAccountsStream(
-    did: string,
-    streams?: CeramicStreams
-  ): Promise<CeramicAccounts> {
-    let accounts: CeramicAccounts = {};
-
-    try {
-      // get the genesis link to pull ids from
-      const genesis = this._tulons.getGenesisHash(did);
-      // pull pointer from did to passport stream
-      streams =
-        streams && streams[this._ceramic_crypto_accounts_stream_id]
-          ? streams
-          : await this._tulons.getGenesisStreams(genesis, [
-              this._ceramic_crypto_accounts_stream_id,
-            ]);
-      // pull the passport from the discovered stream
-      accounts = (await this._tulons.getStream(
-        streams[this._ceramic_crypto_accounts_stream_id] as string
-      )) as CeramicAccounts;
-    } catch {
-      accounts = {};
-    }
-
-    return accounts;
-  }
-
   async getPassportStream(
-    did: string,
+    address: string,
     streams?: CeramicStreams
   ): Promise<CeramicPassportStream | false> {
     let passport: CeramicPassportStream | false;
@@ -147,16 +104,17 @@ export class PassportReader {
     try {
       // pull pointer from did to passport stream
       streams =
-        streams && streams[this._ceramic_passport_stream_id]
+        streams && streams[this._ceramic_gitcoin_passport_stream_id]
           ? streams
           : // get the genesis link and pull streams from it
-            await this._tulons.getGenesisStreams(
-              this._tulons.getGenesisHash(did),
-              [this._ceramic_passport_stream_id]
-            );
+            (
+              await this._tulons.getGenesis(address, [
+                this._ceramic_gitcoin_passport_stream_id,
+              ])
+            ).streams;
       // pull the passport from the discovered stream
       passport = (await this._tulons.getStream(
-        streams[this._ceramic_passport_stream_id] as string
+        streams[this._ceramic_gitcoin_passport_stream_id] as string
       )) as CeramicPassportStream;
     } catch {
       passport = false;

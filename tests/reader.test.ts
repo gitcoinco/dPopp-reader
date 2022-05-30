@@ -1,112 +1,60 @@
 
 /* eslint-disable @typescript-eslint/unbound-method */
+import { CeramicGenesis } from "tulons";
 import { PassportReader } from "../src/reader";
 
-test("Can get DID from wallet address", async () => {
+test("Can get Genesis streams from wallet address", async () => {
   const reader = new PassportReader();
 
-  const mockGetDID = jest.fn();
-  mockGetDID.mockReturnValueOnce("mocked-did");
+  const mockGetGenesis = jest.fn();
+  mockGetGenesis.mockReturnValueOnce({
+    did: "did:pkh:eip155:1:0x0",
+    streams: {
+      'schema-id-1': 'stream-id-1'
+    }
+  });
 
-  reader._tulons.getDID = mockGetDID;
+  reader._tulons.getGenesis = mockGetGenesis;
 
-  const did = await reader.getDID("0x0");
+  const genesis = await reader.getGenesis("0x0") as CeramicGenesis;
 
-  expect(reader._tulons.getDID).toBeCalledWith("0x0");
-  expect(did).toBe("mocked-did");
+  expect(reader._tulons.getGenesis).toBeCalledWith("0x0");
+  expect(genesis.streams).toStrictEqual({
+    'schema-id-1': 'stream-id-1'
+  });
 });
 
-test("Can get Account Stream from DID", async () => {
+test("Can get Passport Stream from a wallet address", async () => {
   const reader = new PassportReader();
 
-  const mockGetGenesisHash = jest.fn();
-  mockGetGenesisHash.mockReturnValueOnce("genesis-hash");
-
-  const mockGetGenesisStreams = jest.fn();
-  mockGetGenesisStreams.mockReturnValueOnce({
-    [reader._ceramic_crypto_accounts_stream_id]: "test",
+  const mockGetGenesis = jest.fn();
+  mockGetGenesis.mockReturnValueOnce({
+    did: "",
+    streams: {
+      [reader._ceramic_gitcoin_passport_stream_id]: "test",
+    }
   });
 
   reader._tulons.getStream = jest.fn();
-  reader._tulons.getGenesisHash = mockGetGenesisHash;
-  reader._tulons.getGenesisStreams = mockGetGenesisStreams;
+  reader._tulons.getGenesis = mockGetGenesis;
 
-  await reader.getAccountsStream("did:3:bafy...");
+  await reader.getPassportStream("0x0");
 
-  expect(reader._tulons.getGenesisHash).toBeCalledWith("did:3:bafy...");
-  expect(reader._tulons.getGenesisStreams).toBeCalledWith("genesis-hash", [
-    reader._ceramic_crypto_accounts_stream_id,
+  expect(reader._tulons.getGenesis).toBeCalledWith("0x0", [
+    reader._ceramic_gitcoin_passport_stream_id,
   ]);
   expect(reader._tulons.getStream).toBeCalledWith("test");
 });
 
-test("Can get Account Stream from DID and return a clean array", async () => {
+test("Can get Passport from a wallet address and hydrate all Stamps from ceramic:// links", async () => {
   const reader = new PassportReader();
 
-  const mockGetStream = jest.fn();
-  mockGetStream
-    .mockReturnValueOnce({
-      "account1@eip155:1":"link1",
-      "account2@eip155:1":"link2",
-      "account3@eip155:1":"link3",
-    })
-
-  const mockGetGenesisHash = jest.fn();
-  mockGetGenesisHash.mockReturnValueOnce("genesis-hash");
-
-  const mockGetGenesisStreams = jest.fn();
-  mockGetGenesisStreams.mockReturnValueOnce({
-    [reader._ceramic_crypto_accounts_stream_id]: "test",
-  });
-
-  reader._tulons.getStream = mockGetStream;
-  reader._tulons.getGenesisHash = mockGetGenesisHash;
-  reader._tulons.getGenesisStreams = mockGetGenesisStreams;
-
-  const accounts = await reader.getAccounts("did:3:bafy...");
-
-  expect(reader._tulons.getGenesisHash).toBeCalledWith("did:3:bafy...");
-  expect(reader._tulons.getGenesisStreams).toBeCalledWith("genesis-hash", [
-    reader._ceramic_crypto_accounts_stream_id,
-  ]);
-  expect(reader._tulons.getStream).toBeCalledWith("test");
-
-  expect(accounts).toStrictEqual(["account1", "account2", "account3"])
-});
-
-test("Can get Passport Stream from DID", async () => {
-  const reader = new PassportReader();
-
-  const mockGetGenesisHash = jest.fn();
-  mockGetGenesisHash.mockReturnValueOnce("genesis-hash");
-
-  const mockGetGenesisStreams = jest.fn();
-  mockGetGenesisStreams.mockReturnValueOnce({
-    [reader._ceramic_passport_stream_id]: "test",
-  });
-
-  reader._tulons.getStream = jest.fn();
-  reader._tulons.getGenesisHash = mockGetGenesisHash;
-  reader._tulons.getGenesisStreams = mockGetGenesisStreams;
-
-  await reader.getPassportStream("did:3:bafy...");
-
-  expect(reader._tulons.getGenesisHash).toBeCalledWith("did:3:bafy...");
-  expect(reader._tulons.getGenesisStreams).toBeCalledWith("genesis-hash", [
-    reader._ceramic_passport_stream_id,
-  ]);
-  expect(reader._tulons.getStream).toBeCalledWith("test");
-});
-
-test("Can get Passport and hydrate all Stamps from ceramic:// links", async () => {
-  const reader = new PassportReader();
-
-  const mockGetGenesisHash = jest.fn();
-  mockGetGenesisHash.mockReturnValueOnce("genesis-hash");
-
-  const mockGetGenesisStreams = jest.fn();
-  mockGetGenesisStreams.mockReturnValueOnce({
-    [reader._ceramic_passport_stream_id]: "test",
+  const mockGetGenesis = jest.fn();
+  mockGetGenesis.mockReturnValueOnce({
+    did: "",
+    streams: {
+      [reader._ceramic_gitcoin_passport_stream_id]: "test",
+    }
   });
 
   const mockGetStream = jest.fn();
@@ -130,12 +78,11 @@ test("Can get Passport and hydrate all Stamps from ceramic:// links", async () =
         }
       })
   
-  reader._tulons.getGenesisHash = mockGetGenesisHash;
-  reader._tulons.getGenesisStreams = mockGetGenesisStreams;
+  reader._tulons.getGenesis = mockGetGenesis;
   reader._tulons.getStream = mockGetStream;
   reader._tulons.getStreams = mockGetStreams;
 
-  const passport = await reader.getPassport("did:3:bafy...");
+  const passport = await reader.getPassport("0x0");
 
   expect(reader._tulons.getStream).toBeCalledWith("test");
   expect(reader._tulons.getStreams).toBeCalledWith(["ceramic://kjzl6c..."]);

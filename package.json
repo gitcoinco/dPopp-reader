@@ -9,7 +9,7 @@
     "dist"
   ],
   "dependencies": {
-    "tulons": "^0.0.3-rev.a"
+    "tulons": "^0.0.4"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.17.12",
